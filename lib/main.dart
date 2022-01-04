@@ -1,4 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:gmeet_to_ics/IcsGen.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:share_plus/share_plus.dart';
 
 void main() {
   runApp(MyApp());
@@ -22,7 +27,7 @@ class MyApp extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      home: MyHomePage(title: 'Gmeet to ICS'),
     );
   }
 }
@@ -45,18 +50,27 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => _MyHomePageState();
 }
 
+
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
   void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+    createSharableIcsFile(context).then((value){
+      Share.shareFiles([value.path]);
     });
+  }
+
+  Future getStoragePermission() async {
+    await Permission.storage.request();
+  }
+  void getPermission(){
+    getStoragePermission();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    getPermission();
   }
 
   @override
@@ -108,7 +122,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   Container(
                     padding: EdgeInsets.all(10),
                     child:ElevatedButton(
-                      onPressed: _incrementCounter,
+                      onPressed: _incrementCounter, //TODO sample
                       child: Text("Today"),
                     ),
                   ),
