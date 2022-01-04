@@ -1,22 +1,18 @@
 import 'package:flutter/cupertino.dart';
 import 'package:ical/serializer.dart';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 
 ICalendar createEvent(){
   ICalendar cal = ICalendar();
   cal.addElement(
     IEvent(
-
-
-      uid: 'test@example.com',
       start: DateTime(2019, 3, 6),
       url: 'https://pub.dartlang.org/packages/srt_parser',
       status: IEventStatus.CONFIRMED,
       location: 'Heilbronn',
       description:
-      'Arman and Adrian released their SRT-file parser library for Dart',
-      summary: 'SRT-file Parser Release',
+      'Description',
+      summary: 'Test',
 
     ),
   );
