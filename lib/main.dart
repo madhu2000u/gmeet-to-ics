@@ -1,20 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:gmeet_to_ics/AuthScreenDialog.dart';
 import 'package:gmeet_to_ics/Functions.dart' as functions;
 import 'package:gmeet_to_ics/IcsGen.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:googleapis_auth/auth_io.dart';
+import 'package:googleapis/calendar/v3.dart' as cal;
+import 'calendar_client.dart';
+import 'secrets.dart';
 
-void main() {
+Future<void> main() async {
+  // Tries to login as soon as app opens
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  var _clientID = new ClientId(Secret.getId(), "");
+  const _scopes = const [cal.CalendarApi.calendarScope];
+  await clientViaUserConsent(_clientID, _scopes, prompt)
+      .then((AuthClient client) async {
+    CalendarClient.calendar = cal.CalendarApi(client);
+    print("Authenticated");
+  });
   runApp(MyApp());
 }
 
-// GoogleSignIn _googleSignIn = GoogleSignIn(
-//   scopes: <String>[
-//     'email',
-//     'https://www.googleapis.com/auth/calendar'
-//   ]
-// );
+void prompt(String url) async {
+  await launch(url);
+}
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
@@ -57,47 +70,48 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => _MyHomePageState();
 }
 
-
 class _MyHomePageState extends State<MyHomePage> {
-  var _current_user;
-  DateTime? date;
-  TimeOfDay? startTime, endTime;
+  DateTime startT = new DateTime(0), endT = new DateTime(0);
   String timezone = "";
-
-  void getTodayDate(){
+  void getTodayDate() {
     setState(() {
-      date = functions.getTodayDate();
+      startT = functions.getTodayDate();
     });
   }
-  void getTomorrowDate(){
+
+  void getTomorrowDate() {
     setState(() {
-      date = functions.getTomorrowDate();
+      startT = functions.getTomorrowDate();
     });
   }
 
   void getSelectedDate(BuildContext context) async {
-    date = await functions.getSelectedDate(context);
+    startT = (await functions.getSelectedDate(context))!;
     setState(() {});
   }
 
   void getSelectedTime(BuildContext context) async {
-    startTime = await functions.getSelectedTime(context);
+    TimeOfDay? startTime = await functions.getSelectedTime(context);
+    startT = new DateTime(startT!.year, startT!.month, startT!.day,
+        startTime!.hour, startTime.minute);
     setState(() {});
-    int startHour = startTime!.hour;
-    int startMin = startTime!.minute;
+    int startHour = startTime.hour;
+    int startMin = startTime.minute;
     int? endMin = 0;
     int endHour = 0;
-    if(startMin + 25 < 60){
+    if (startMin + 25 < 60) {
       endMin = startMin + 25;
       endHour = startHour;
-    }else if(startMin + 25 >= 60){
+    } else if (startMin + 25 >= 60) {
       endMin = 0;
       endHour = startHour + 1;
     }
-    if(endHour > 23){
+    if (endHour > 23) {
       endHour = 0;
     }
-    endTime = new TimeOfDay(hour: endHour, minute: endMin);
+    endT =
+        new DateTime(startT!.year, startT!.month, startT!.day, endHour, endMin);
+    setState(() {});
   }
 
   void getTimeZone() async {
@@ -105,8 +119,18 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {});
   }
 
-  void _incrementCounter() {
-    createSharableIcsFile(context).then((value){
+  Future<void> _shareIcs() async {
+    CalendarClient calendarClient = new CalendarClient();
+    Map<String, String> meetData = await calendarClient.insert(
+        title: "Online meet",
+        description: "Meet online",
+        location: "Online",
+        startTime: startT,
+        endTime: endT,
+        hasConferenceSupport: true,
+        attendeeEmailList: List.empty(),
+        shouldNotifyAttendees: false);
+    createSharableIcsFile(context, meetData, startT).then((value) {
       Share.shareFiles([value.path]);
     });
   }
@@ -114,7 +138,8 @@ class _MyHomePageState extends State<MyHomePage> {
   Future getStoragePermission() async {
     await Permission.storage.request();
   }
-  void getPermission(){
+
+  void getPermission() {
     getStoragePermission();
   }
 
@@ -122,61 +147,60 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     getPermission();
-
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: //_current_user==null? AuthDialog():
-        Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: <Widget>[
             Container(
-                child:Text(
-                  date == null?'Date:':"Date: "+date.toString(),   //TODO convert to human readable string, write another function for that ig
-                  textAlign: TextAlign.start,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                )
-            ),
+                child: Text(
+              startT == null
+                  ? 'Date:'
+                  : "Date: " +
+                      startT
+                          .toString(), //TODO convert to human readable string, write another function for that ig
+              textAlign: TextAlign.start,
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            )),
             Container(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
                     padding: EdgeInsets.all(10),
-                    child:ElevatedButton(
-                      onPressed: ()=> this.getTodayDate(), //TODO sample
+                    child: ElevatedButton(
+                      onPressed: () => this.getTodayDate(), //TODO sample
                       child: Text("Today"),
                     ),
                   ),
                   Container(
                     padding: EdgeInsets.all(10),
-                    child:ElevatedButton(
+                    child: ElevatedButton(
                         onPressed: this.getTomorrowDate,
-                        child: Text("Tomorrow")
-                    ),
+                        child: Text("Tomorrow")),
                   ),
                   Container(
                     padding: EdgeInsets.all(10),
-                    child:ElevatedButton(
-                        onPressed: ()=>{this.getSelectedDate(context)},
-                        child: Text("Select date")
-                    ),
+                    child: ElevatedButton(
+                        onPressed: () => {this.getSelectedDate(context)},
+                        child: Text("Select date")),
                   )
-
-
                 ],
-              ) ,
+              ),
               padding: EdgeInsets.only(bottom: 15),
             ),
             //-------------------------------------//
             Text(
-              startTime == null?"Time:" : "Time:" + startTime.toString(),  //TODO convert to human readable
-              textAlign: TextAlign.start,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)
-            ),
+                startT == null
+                    ? "Time:"
+                    : "Time:" +
+                        startT.toString(), //TODO convert to human readable
+                textAlign: TextAlign.start,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             Container(
               padding: EdgeInsets.only(bottom: 30),
               child: Row(
@@ -184,51 +208,45 @@ class _MyHomePageState extends State<MyHomePage> {
                 children: [
                   Container(
                     padding: EdgeInsets.all(10),
-                    child: ElevatedButton(onPressed: ()=>{this.getSelectedTime(context)},
-                        child: Text("Pick time") //will be dynamic, if time selected, then time will be shown instead of "Pick time"
-                    ),
+                    child: ElevatedButton(
+                        onPressed: () => {this.getSelectedTime(context)},
+                        child: Text(
+                            "Pick time") //will be dynamic, if time selected, then time will be shown instead of "Pick time"
+                        ),
                   ),
-
                   Container(
                       padding: EdgeInsets.all(10),
-                    child: ElevatedButton(onPressed: this.getTimeZone,
-                        child: Column(
-                          children: [
-                            Text("Time zone"),
-                            Text(timezone)  //will be dynamic
-                          ],
-                        )
-                    )
-                  )
-
-
+                      child: ElevatedButton(
+                          onPressed: this.getTimeZone,
+                          child: Column(
+                            children: [
+                              Text("Time zone"),
+                              Text(timezone) //will be dynamic
+                            ],
+                          )))
                 ],
               ),
             ),
 
-            Text(
-                "Link",
+            Text("Link",
                 textAlign: TextAlign.start,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             Text("the actual meet link"),
             Container(
-              padding: EdgeInsets.only(top: 100, bottom: 20, left: 80, right: 80),
-              child: SizedBox(
-                width: double.infinity,
-                  child:ElevatedButton(
-                  onPressed: _incrementCounter,
-                  child: Text(
-                      "SHARE",
-                    style: TextStyle(fontSize: 25),
-                  )
-                )
-              )
-            )
-
+                padding:
+                    EdgeInsets.only(top: 100, bottom: 20, left: 80, right: 80),
+                child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                        onPressed: _shareIcs,
+                        child: Text(
+                          "SHARE",
+                          style: TextStyle(fontSize: 25),
+                        ))))
           ],
         ),
       ),
-       // This trailing comma makes auto-formatting nicer for build methods.
+      // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }

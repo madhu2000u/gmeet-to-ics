@@ -55,7 +55,7 @@ class CalendarClient {
           .then((value) {
         print("Event Status: ${value.status}");
         if (value.status == "confirmed") {
-          late String joiningLink;
+          String joiningLink = "";
           String eventId;
 
           eventId = value.id;
@@ -65,7 +65,12 @@ class CalendarClient {
                 "https://meet.google.com/${value.conferenceData.conferenceId}";
           }
 
-          eventData = {'id': eventId, 'link': joiningLink};
+          eventData = {
+            'id': eventId,
+            'link': joiningLink,
+            'location': location,
+            'description': description
+          };
 
           print('Event added to Google Calendar');
         } else {
