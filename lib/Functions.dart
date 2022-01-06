@@ -45,3 +45,12 @@ Future<String> getTimeZone() async {
   // else return ("GMT "+ timezone);
 }
 
+Future<List<String>> getAvailableTimezones() async {
+  try{
+    List<String> timezones = await FlutterNativeTimezone.getAvailableTimezones();
+    return timezones;
+  }catch(e){
+    return <String>["Error fetching available time zones"];
+  }
+}
+

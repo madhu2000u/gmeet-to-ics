@@ -6,6 +6,7 @@ ICalendar createEvent(DateTime startTime, Map<String, String> meetData) {
   ICalendar cal = ICalendar();
   cal.addElement(
     IEvent(
+      duration: Duration(minutes: 25),  //as of now just the default is 25
       start: startTime,
       url: meetData["link"],
       status: IEventStatus.CONFIRMED,
@@ -21,6 +22,8 @@ Future<File> createSharableIcsFile(BuildContext context,
     Map<String, String> meetData, DateTime startTime) async {
   ICalendar cal = createEvent(startTime, meetData);
   String ics = cal.serialize();
+  //ics = ics.replaceAll(new RegExp(r'BEGIN:VEVENT'), "BEGIN:VEVENT\nX-GOOGLE-CONFERENCE:https://meet.google.com/jum-gpmv-cti");
+
   // String split = "";
   // int i = 0;
   // while(ics[i] != "\n"){

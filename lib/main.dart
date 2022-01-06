@@ -73,6 +73,10 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   DateTime startT = new DateTime(0), endT = new DateTime(0);
   String timezone = "";
+  String meetLink = "Loading...";
+  List<String> timezones = [];
+  List<String> test = ["one", "two", "three"];
+
   void getTodayDate() {
     setState(() {
       startT = functions.getTodayDate();
@@ -103,7 +107,7 @@ class _MyHomePageState extends State<MyHomePage> {
       endMin = startMin + 25;
       endHour = startHour;
     } else if (startMin + 25 >= 60) {
-      endMin = 0;
+      endMin = 25 - (60 - startMin);
       endHour = startHour + 1;
     }
     if (endHour > 23) {
@@ -116,6 +120,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void getTimeZone() async {
     timezone = await functions.getTimeZone();
+    setState(() {});
+  }
+
+  void getAvailableTimezones() async {
+    timezones = await functions.getAvailableTimezones();
     setState(() {});
   }
 
@@ -147,6 +156,8 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     getPermission();
+    getTimeZone();
+    getAvailableTimezones();
   }
 
   @override
@@ -202,7 +213,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 textAlign: TextAlign.start,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             Container(
-              padding: EdgeInsets.only(bottom: 30),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -212,26 +222,47 @@ class _MyHomePageState extends State<MyHomePage> {
                         onPressed: () => {this.getSelectedTime(context)},
                         child: Text(
                             "Pick time") //will be dynamic, if time selected, then time will be shown instead of "Pick time"
-                        ),
+                    ),
                   ),
-                  Container(
-                      padding: EdgeInsets.all(10),
-                      child: ElevatedButton(
-                          onPressed: this.getTimeZone,
-                          child: Column(
-                            children: [
-                              Text("Time zone"),
-                              Text(timezone) //will be dynamic
-                            ],
-                          )))
+
                 ],
               ),
+            ),
+            Container(
+              padding: EdgeInsets.only(top: 20),
+              child: Text(
+                  "Timezone",
+                textAlign: TextAlign.start,
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+
+            ),
+            Container(
+
+              child: DropdownButton<String>(
+                alignment: AlignmentDirectional.center,
+                  focusColor: Colors.blue,
+                  isExpanded: false,
+
+                  value: timezone,
+
+                  items: timezones.map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (String? value){
+                    setState(() {
+                      timezone = value!;
+                    });
+                  }),
             ),
 
             Text("Link",
                 textAlign: TextAlign.start,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            Text("the actual meet link"),
+            Text(meetLink),
             Container(
                 padding:
                     EdgeInsets.only(top: 100, bottom: 20, left: 80, right: 80),
