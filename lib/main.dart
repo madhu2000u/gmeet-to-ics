@@ -215,6 +215,15 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.end,
           children: <Widget>[
             Container(
+              margin: EdgeInsets.all(30),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  ElevatedButton(onPressed: null, child: Text("Logout"))  //TODO add function
+                ],
+              ),
+            ),
+            Container(
                 child: Text(
               startT.year == 0
                   ? 'Date: choose date'
@@ -255,7 +264,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 startT.hour == 0
                     ? "choose time"
                     : "Time: " +
-                        startT.hour.toString() + " : " + startT.minute.toString(),
+                        (startT.hour > 12 ? (startT.hour - 12).toString() : startT.hour.toString()) + " : " + startT.minute.toString() + (startT.hour < 12 ? " AM" : " PM"),
                 textAlign: TextAlign.start,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             Container(
