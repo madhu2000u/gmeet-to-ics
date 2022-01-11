@@ -73,25 +73,62 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   DateTime startT = new DateTime(0), endT = new DateTime(0);
   String timezone = "";
-  String meetLink = "Loading...";
+  String meetLink = "";
+  Map<String, String>? meetData;
   List<String> timezones = [];
   List<String> test = ["one", "two", "three"];
+  bool detailsChosen = false;
+  bool isLoadingLink = false;
+  CalendarClient calendarClient = new CalendarClient();
+
+  String getLinkUIText(){
+    if(!detailsChosen) return "Please choose above details to create link";
+    if(isLoadingLink) return "Loading...";
+    return meetLink;
+  }
+
+  void createConferenceLink(bool hasConferenceSupport, DateTime startT, DateTime endT){
+    calendarClient.createConference(hasConferenceSupport, startT, endT);
+  }
+
+  void updateStates(){
+    if(startT.year != 0 && startT.hour != 0 && timezone != ""){
+      detailsChosen = true;
+      createConferenceLink(true, startT, endT);
+      setState(() {
+        isLoadingLink = true;
+      });
+      calenderClientInsert();
+         //To make sure the link has actually loaded because the link loads asynchronously
+         //  if (calendarClient
+         //      .getEvent()
+         //      .conferenceData != null) {
+         //  }
+
+
+    }
+
+
+  }
 
   void getTodayDate() {
     setState(() {
       startT = functions.getTodayDate();
     });
+    updateStates();
   }
 
   void getTomorrowDate() {
     setState(() {
       startT = functions.getTomorrowDate();
     });
+    updateStates();
   }
 
   void getSelectedDate(BuildContext context) async {
     startT = (await functions.getSelectedDate(context))!;
     setState(() {});
+    updateStates();
   }
 
   void getSelectedTime(BuildContext context) async {
@@ -116,11 +153,13 @@ class _MyHomePageState extends State<MyHomePage> {
     endT =
         new DateTime(startT!.year, startT!.month, startT!.day, endHour, endMin);
     setState(() {});
+    updateStates();
   }
 
   void getTimeZone() async {
     timezone = await functions.getTimeZone();
     setState(() {});
+    updateStates();
   }
 
   void getAvailableTimezones() async {
@@ -128,18 +167,26 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {});
   }
 
-  Future<void> _shareIcs() async {
-    CalendarClient calendarClient = new CalendarClient();
-    Map<String, String> meetData = await calendarClient.insert(
-        title: "Online meet",
-        description: "Meet online",
-        location: "Online",
-        startTime: startT,
-        endTime: endT,
-        hasConferenceSupport: true,
-        attendeeEmailList: List.empty(),
-        shouldNotifyAttendees: false);
-    createSharableIcsFile(context, meetData, startT).then((value) {
+  Future<void> calenderClientInsert() async {
+    meetData = await calendarClient.insert(
+      title: "Online meet",
+      description: "Meet online",
+      location: "Online",
+      startTime: startT,
+      endTime: endT,
+      hasConferenceSupport: true,
+      attendeeEmailList: List.empty(),
+      shouldNotifyAttendees: false,
+    );
+    setState(() {
+      if(isLoadingLink) isLoadingLink = false;
+      meetLink = meetData!["link"] != null? meetData!["link"] as String:"Error loading meetlink.";
+    });
+
+  }
+
+  void _shareIcs()  {
+    createSharableIcsFile(context, meetData!, startT, timezone).then((value) {
       Share.shareFiles([value.path]);
     });
   }
@@ -169,11 +216,10 @@ class _MyHomePageState extends State<MyHomePage> {
           children: <Widget>[
             Container(
                 child: Text(
-              startT == null
-                  ? 'Date:'
+              startT.year == 0
+                  ? 'Date: choose date'
                   : "Date: " +
-                      startT
-                          .toString(), //TODO convert to human readable string, write another function for that ig
+                      startT.day.toString() + " - " + startT.month.toString() + " - " + startT.year.toString(),
               textAlign: TextAlign.start,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             )),
@@ -184,7 +230,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   Container(
                     padding: EdgeInsets.all(10),
                     child: ElevatedButton(
-                      onPressed: () => this.getTodayDate(), //TODO sample
+                      onPressed: () => this.getTodayDate(),
                       child: Text("Today"),
                     ),
                   ),
@@ -206,10 +252,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             //-------------------------------------//
             Text(
-                startT == null
-                    ? "Time:"
-                    : "Time:" +
-                        startT.toString(), //TODO convert to human readable
+                startT.hour == 0
+                    ? "choose time"
+                    : "Time: " +
+                        startT.hour.toString() + " : " + startT.minute.toString(),
                 textAlign: TextAlign.start,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             Container(
@@ -262,7 +308,7 @@ class _MyHomePageState extends State<MyHomePage> {
             Text("Link",
                 textAlign: TextAlign.start,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            Text(meetLink),
+            Text(getLinkUIText()),
             Container(
                 padding:
                     EdgeInsets.only(top: 100, bottom: 20, left: 80, right: 80),

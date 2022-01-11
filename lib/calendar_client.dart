@@ -5,6 +5,27 @@ class CalendarClient {
   // For storing the CalendarApi object, this can be used
   // for performing all the operations
   static var calendar;
+  Event event = Event();
+
+  void createConference(bool hasConferenceSupport, DateTime startTime, DateTime endTime){
+    if (hasConferenceSupport && event.conferenceData == null) {
+      ConferenceData conferenceData = ConferenceData();
+      CreateConferenceRequest conferenceRequest = CreateConferenceRequest();
+      conferenceRequest.requestId =
+      "${startTime.millisecondsSinceEpoch}-${endTime.millisecondsSinceEpoch}";
+      conferenceData.createRequest = conferenceRequest;
+
+      event.conferenceData = conferenceData;
+    }
+  }
+
+  Event getEvent(){
+    return event;
+  }
+   String getConferenceLink(Event value){
+    return "https://meet.google.com/${value.conferenceData?.conferenceId}";
+   }
+
 
   // For creating a new calendar event
   Future<Map<String, String>> insert({
@@ -20,21 +41,15 @@ class CalendarClient {
     late Map<String, String> eventData;
 
     String calendarId = "primary";
-    Event event = Event();
+
 
     event.summary = title;
     event.description = description;
     event.attendees = attendeeEmailList;
     event.location = location;
 
-    if (hasConferenceSupport) {
-      ConferenceData conferenceData = ConferenceData();
-      CreateConferenceRequest conferenceRequest = CreateConferenceRequest();
-      conferenceRequest.requestId =
-          "${startTime.millisecondsSinceEpoch}-${endTime.millisecondsSinceEpoch}";
-      conferenceData.createRequest = conferenceRequest;
-
-      event.conferenceData = conferenceData;
+    if (hasConferenceSupport && event.conferenceData == null) {
+      createConference(hasConferenceSupport, startTime, endTime);
     }
 
     EventDateTime start = new EventDateTime();
