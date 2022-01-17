@@ -39,6 +39,7 @@ dependencies:
   flutter_native_timezone: ^2.0.0
   time: ^2.1.0
   enough_icalendar: ^0.10.0
+  flutter_secure_storage: ^5.0.2
 
 dev_dependencies:
   flutter_test:

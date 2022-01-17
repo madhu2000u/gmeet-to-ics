@@ -1,32 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gmeet_to_ics/Functions.dart' as functions;
 import 'package:gmeet_to_ics/IcsGen.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:googleapis_auth/auth_io.dart';
 import 'package:googleapis/calendar/v3.dart' as cal;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'calendar_client.dart';
-import 'secrets.dart';
+import 'client_service.dart';
 
 Future<void> main() async {
   // Tries to login as soon as app opens
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
 
-  var _clientID = new ClientId(Secret.getId(), "");
-  const _scopes = const [cal.CalendarApi.calendarScope];
-  await clientViaUserConsent(_clientID, _scopes, prompt)
-      .then((AuthClient client) async {
-    CalendarClient.calendar = cal.CalendarApi(client);
-    print("Authenticated");
-  });
+  var _client = await CredentialsProvider().client;
+  CalendarClient.calendar = cal.CalendarApi(_client);
+  // await Firebase.initializeApp();
+
+  // var _clientID = new ClientId(Secret.getId(), "");
+  // const _scopes = const [cal.CalendarApi.calendarScope];
+
+  // await clientViaUserConsent(_clientID, _scopes, prompt)
+  //     .then((AuthClient client) async {
+  //   CalendarClient.calendar = cal.CalendarApi(client);
+
+  //   print("Authenticated");
+  // });
   runApp(MyApp());
-}
-
-void prompt(String url) async {
-  await launch(url);
 }
 
 class MyApp extends StatelessWidget {
@@ -81,34 +81,32 @@ class _MyHomePageState extends State<MyHomePage> {
   bool isLoadingLink = false;
   CalendarClient calendarClient = new CalendarClient();
 
-  String getLinkUIText(){
-    if(!detailsChosen) return "Please choose above details to create link";
-    if(isLoadingLink) return "Loading...";
+  String getLinkUIText() {
+    if (!detailsChosen) return "Please choose above details to create link";
+    if (isLoadingLink) return "Loading...";
     return meetLink;
   }
 
-  void createConferenceLink(bool hasConferenceSupport, DateTime startT, DateTime endT){
+  void createConferenceLink(
+      bool hasConferenceSupport, DateTime startT, DateTime endT) {
     calendarClient.createConference(hasConferenceSupport, startT, endT);
   }
 
-  void updateStates(){
-    if(startT.year != 0 && startT.hour != 0 && timezone != ""){
+  void updateStates() {
+    if (startT.year != 0 && startT.hour != 0 && timezone != "") {
       detailsChosen = true;
       createConferenceLink(true, startT, endT);
       setState(() {
         isLoadingLink = true;
       });
-      calenderClientInsert();
-         //To make sure the link has actually loaded because the link loads asynchronously
-         //  if (calendarClient
-         //      .getEvent()
-         //      .conferenceData != null) {
-         //  }
-
+      // calenderClientInsert();
+      //To make sure the link has actually loaded because the link loads asynchronously
+      //  if (calendarClient
+      //      .getEvent()
+      //      .conferenceData != null) {
+      //  }
 
     }
-
-
   }
 
   void getTodayDate() {
@@ -179,13 +177,15 @@ class _MyHomePageState extends State<MyHomePage> {
       shouldNotifyAttendees: false,
     );
     setState(() {
-      if(isLoadingLink) isLoadingLink = false;
-      meetLink = meetData!["link"] != null? meetData!["link"] as String:"Error loading meetlink.";
+      if (isLoadingLink) isLoadingLink = false;
+      meetLink = meetData!["link"] != null
+          ? meetData!["link"] as String
+          : "Error loading meetlink.";
     });
-
   }
 
-  void _shareIcs()  {
+  void _shareIcs() async {
+    await calenderClientInsert();
     createSharableIcsFile(context, meetData!, startT, timezone).then((value) {
       Share.shareFiles([value.path]);
     });
@@ -197,6 +197,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void getPermission() {
     getStoragePermission();
+  }
+
+  Future<void> logout() async {
+    final _storage = const FlutterSecureStorage();
+    await _storage.deleteAll();
+
+    /**
+     * This is an android solution to exit app. iOS won't work.
+     * Don't use exit(0)
+     * Preferably we need to go to a login screen.
+     */
+    SystemNavigator.pop();
   }
 
   @override
@@ -219,7 +231,7 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  ElevatedButton(onPressed: null, child: Text("Logout"))  //TODO add function
+                  ElevatedButton(onPressed: logout, child: Text("Logout"))
                 ],
               ),
             ),
@@ -228,7 +240,11 @@ class _MyHomePageState extends State<MyHomePage> {
               startT.year == 0
                   ? 'Date: choose date'
                   : "Date: " +
-                      startT.day.toString() + " - " + startT.month.toString() + " - " + startT.year.toString(),
+                      startT.day.toString() +
+                      " - " +
+                      startT.month.toString() +
+                      " - " +
+                      startT.year.toString(),
               textAlign: TextAlign.start,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             )),
@@ -264,7 +280,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 startT.hour == 0
                     ? "choose time"
                     : "Time: " +
-                        (startT.hour > 12 ? (startT.hour - 12).toString() : startT.hour.toString()) + " : " + startT.minute.toString() + (startT.hour < 12 ? " AM" : " PM"),
+                        startT.hour.toString() +
+                        " : " +
+                        startT.minute.toString(),
                 textAlign: TextAlign.start,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             Container(
@@ -277,37 +295,33 @@ class _MyHomePageState extends State<MyHomePage> {
                         onPressed: () => {this.getSelectedTime(context)},
                         child: Text(
                             "Pick time") //will be dynamic, if time selected, then time will be shown instead of "Pick time"
-                    ),
+                        ),
                   ),
-
                 ],
               ),
             ),
             Container(
               padding: EdgeInsets.only(top: 20),
               child: Text(
-                  "Timezone",
+                "Timezone",
                 textAlign: TextAlign.start,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-
             ),
             Container(
-
               child: DropdownButton<String>(
-                alignment: AlignmentDirectional.center,
+                  alignment: AlignmentDirectional.center,
                   focusColor: Colors.blue,
                   isExpanded: false,
-
                   value: timezone,
-
-                  items: timezones.map<DropdownMenuItem<String>>((String value) {
+                  items:
+                      timezones.map<DropdownMenuItem<String>>((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
                       child: Text(value),
                     );
                   }).toList(),
-                  onChanged: (String? value){
+                  onChanged: (String? value) {
                     setState(() {
                       timezone = value!;
                     });

@@ -7,7 +7,7 @@ ICalendar createEvent(DateTime startTime, Map<String, String> meetData) {
   ICalendar cal = ICalendar();
   cal.addElement(
     IEvent(
-      duration: Duration(minutes: 25),  //as of now just the default is 25
+      duration: Duration(minutes: 25), //as of now just the default is 25
       start: startTime,
       url: meetData["link"],
       status: IEventStatus.CONFIRMED,
@@ -19,24 +19,21 @@ ICalendar createEvent(DateTime startTime, Map<String, String> meetData) {
   return cal;
 }
 
-VCalendar newEvent(DateTime startTime, Map<String, String> meetData, String timezone){
-  VCalendar x =  VCalendar.createEvent(
-    start: DateTime(2022, 1,1),
+VCalendar newEvent(
+    DateTime startTime, Map<String, String> meetData, String timezone) {
+  VCalendar x = VCalendar.createEvent(
+    start: startTime,
     duration: IsoDuration(minutes: 25),
     location: "Online",
     summary: meetData["description"],
     description: meetData["link"],
     url: Uri.parse(meetData["link"] as String),
-    //organizerEmail: "random@gmail.com",
+    organizerEmail: "gmeet_to_ics",
     timezoneId: timezone,
-    //organizer: OrganizerProperty("Random:"),
-    //TODO
-
   );
   String a = x.toString();
-  print ("ICS:\n" + a);
+  print("ICS:\n" + a);
   return x;
-
 }
 
 Future<File> createSharableIcsFile(BuildContext context,
